@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baryon Runner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root, [data-palette="matrix"] {
+    --bg: #0d0f12;
+    --surface: #13161b;
+    --panel: #151923;
+    --border: #1e232c;
+    --text: #d4dae5;
+    --muted: #5a6478;
+    --accent: #2e8b57;
+    --accent-bright: #3dba72;
+    --accent-soft: rgba(46,139,87,0.10);
+    --accent-soft-2: rgba(46,139,87,0.18);
+    --warn: #e67e22;
+    --error: #e74c3c;
+    --info: #4da8e8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  [data-palette="arctic"] {
+    --bg: #080e18;
+    --surface: #0d1520;
+    --panel: #101927;
+    --border: #162035;
+    --text: #c8dff5;
+    --muted: #4a6a8a;
+    --accent: #1a6fb5;
+    --accent-bright: #4da8e8;
+    --accent-soft: rgba(77,168,232,0.10);
+    --accent-soft-2: rgba(77,168,232,0.18);
+  }
+
+  [data-palette="amber"] {
+    --bg: #0f0c08;
+    --surface: #191208;
+    --panel: #1d1408;
+    --border: #2a1e0a;
+    --text: #f0d9b0;
+    --muted: #6b5535;
+    --accent: #b87c1a;
+    --accent-bright: #f0a830;
+    --accent-soft: rgba(240,168,48,0.10);
+    --accent-soft-2: rgba(240,168,48,0.18);
+  }
+
+  [data-palette="mono"] {
+    --bg: #000000;
+    --surface: #0f0f0f;
+    --panel: #111111;
+    --border: #222222;
+    --text: #e0e0e0;
+    --muted: #555555;
+    --accent: #888888;
+    --accent-bright: #cccccc;
+    --accent-soft: rgba(204,204,204,0.08);
+    --accent-soft-2: rgba(204,204,204,0.14);
+  }
+
+  [data-palette="sakura"] {
+    --bg: #0e080f;
+    --surface: #150c17;
+    --panel: #190d1b;
+    --border: #251328;
+    --text: #f0d0e8;
+    --muted: #6a4070;
+    --accent: #a0358a;
+    --accent-bright: #e060c0;
+    --accent-soft: rgba(224,96,192,0.10);
+    --accent-soft-2: rgba(224,96,192,0.18);
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: var(--base-font, 14px);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+
+  header {
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 0.93rem;
+    font-weight: 600;
+    color: var(--accent-bright);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .logo span {
+    color: var(--muted);
+  }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 0.71rem;
+    padding: 0.14rem 0.57rem;
+    border: 1px solid var(--accent);
+    color: var(--accent-bright);
+    border-radius: 2px;
+    letter-spacing: 0.05em;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.71rem;
+    flex-wrap: wrap;
+  }
+
+  .palette-row {
+    display: flex;
+    gap: 0.36rem;
+    align-items: center;
+  }
+
+  .swatch {
+    width: 1.14rem;
+    height: 1.14rem;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+
+  .swatch:hover { transform: scale(1.25); }
+  .swatch.active { border-color: var(--text); }
+  .swatch[data-p="matrix"] { background: radial-gradient(circle, #3dba72, #0d0f12); }
+  .swatch[data-p="arctic"] { background: radial-gradient(circle, #4da8e8, #080e18); }
+  .swatch[data-p="amber"]  { background: radial-gradient(circle, #f0a830, #0f0c08); }
+  .swatch[data-p="mono"]   { background: radial-gradient(circle, #ccc, #000); }
+  .swatch[data-p="sakura"] { background: radial-gradient(circle, #e060c0, #0e080f); }
+
+  .zoom-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 3px;
+    padding: 0.21rem 0.57rem;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.79rem;
+  }
+
+  .zoom-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent-bright);
+  }
+
+  .music-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.36rem 0.86rem;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.71rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .music-btn:hover {
+    border-color: #00ffcc44;
+    color: #00ffcc99;
+  }
+
+  .music-btn.playing {
+    border-color: #00ffcc66;
+    color: #00ffcc;
+    background: rgba(0,255,204,0.05);
+  }
+
+  .mbars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 0.86rem;
+  }
+
+  .mbars span {
+    display: block;
+    width: 3px;
+    background: #00ffcc;
+    border-radius: 1px;
+  }
+
+  .mbars span:nth-child(1) { height: 4px; }
+  .mbars span:nth-child(2) { height: 10px; }
+  .mbars span:nth-child(3) { height: 7px; }
+  .mbars span:nth-child(4) { height: 12px; }
+  .mbars span:nth-child(5) { height: 5px; }
+
+  main {
+    display: grid;
+    grid-template-columns: 31rem 1fr;
+    height: calc(100vh - 3.79rem);
+  }
+
+  .panel {
+    border-right: 1px solid var(--border);
+    padding: 2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.71rem;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.71rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.71rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+  }
+
+  .card h3 {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--accent-bright);
+    margin-bottom: 0.71rem;
+  }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 6px;
+    padding: 1.71rem 1.14rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    user-select: none;
+  }
+
+  .drop-zone.drag-over,
+  .drop-zone:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .drop-zone.has-file {
+    border-color: var(--accent);
+    border-style: solid;
+  }
+
+  .drop-icon {
+    font-size: 1.71rem;
+    margin-bottom: 0.57rem;
+    opacity: 0.4;
+    line-height: 1;
+  }
+
+  .drop-title {
+    font-size: 0.93rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.29rem;
+  }
+
+  .drop-sub {
+    font-size: 0.79rem;
+    color: var(--muted);
+  }
+
+  .browse-btn {
+    display: inline-block;
+    margin-top: 0.86rem;
+    padding: 0.43rem 1.14rem;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    color: var(--accent-bright);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 0.79rem;
+    cursor: pointer;
+  }
+
+  .browse-btn:hover {
+    background: var(--accent-soft-2);
+  }
+
+  .file-list {
+    margin-top: 0.86rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.29rem;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft-2);
+    border-radius: 3px;
+    padding: 0.36rem 0.71rem;
+    font-family: var(--mono);
+    font-size: 0.79rem;
+    color: var(--accent-bright);
+  }
+
+  .file-item .remove {
+    cursor: pointer;
+    color: var(--muted);
+    margin-left: 0.57rem;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .file-item .remove:hover { color: var(--error); }
+
+  .kv, .hint, .small {
+    color: var(--muted);
+    font-size: 0.79rem;
+    line-height: 1.7;
+  }
+
+  .field { margin-bottom: 0.86rem; }
+
+  .field label {
+    display: block;
+    font-size: 0.86rem;
+    margin-bottom: 0.36rem;
+  }
+
+  .field input[type="text"],
+  .field select,
+  .field input[type="file"] {
+    width: 100%;
+    background: #0b0d10;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.64rem 0.71rem;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+  }
+
+  .field input[type="file"] { padding: 0.5rem; }
+
+  .row {
+    display: flex;
+    gap: 0.71rem;
+  }
+
+  .row > * { flex: 1; }
+
+  .btn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.71rem;
+  }
+
+  .btn:hover:not(:disabled) { filter: brightness(1.15); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn.secondary {
+    background: transparent;
+    color: var(--accent-bright);
+    border: 1px solid var(--accent);
+  }
+
+  .spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .output-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .output-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 2.29rem;
+  }
+
+  .tab {
+    font-family: var(--mono);
+    font-size: 0.79rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 1rem 1.14rem;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+  }
+
+  .tab.active {
+    color: var(--accent-bright);
+    border-bottom-color: var(--accent-bright);
+  }
+
+  .tab-content {
+    flex: 1;
+    overflow: auto;
+    padding: 1.71rem 2.29rem;
+    display: none;
+  }
+
+  .tab-content.active { display: block; }
+
+  .terminal {
+    background: #08090b;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.43rem;
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    line-height: 1.8;
+    color: #7a9e8a;
+    min-height: 18rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    max-height: calc(100vh - 18rem);
+  }
+
+  .term-prompt { color: var(--accent-bright); }
+  .term-err { color: var(--error); }
+  .term-ok { color: var(--accent-bright); font-weight: 600; }
+  .term-warn { color: var(--warn); }
+
+  .job-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem 1.29rem;
+    margin-bottom: 0.71rem;
+    display: flex;
+    align-items: center;
+    gap: 0.86rem;
+  }
+
+  .job-info { flex: 1; }
+
+  .job-id {
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    color: var(--accent-bright);
+  }
+
+  .job-file {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 0.14rem;
+  }
+
+  .status-pill {
+    font-family: var(--mono);
+    font-size: 0.71rem;
+    padding: 0.21rem 0.71rem;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .status-running { background: rgba(230,126,34,0.15); color: var(--warn); }
+  .status-done    { background: rgba(46,139,87,0.15); color: var(--accent-bright); }
+  .status-error   { background: rgba(231,76,60,0.15); color: var(--error); }
+
+  .dl-btn {
+    padding: 0.43rem 1rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent-bright);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 0.79rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .dl-btn:hover { background: var(--accent-soft); }
+  .dl-btn[disabled] { opacity: 0.3; pointer-events: none; }
+
+  .empty-state {
+    text-align: center;
+    padding: 4.29rem 1.43rem;
+    color: var(--muted);
+    font-size: 0.93rem;
+    line-height: 2;
+  }
+
+  .empty-state .big {
+    font-size: 2.57rem;
+    margin-bottom: 0.86rem;
+    opacity: 0.2;
+  }
+
+  .current-job-banner {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft-2);
+    border-radius: 4px;
+    padding: 0.71rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.79rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .pulse {
+    width: 0.57rem;
+    height: 0.57rem;
+    border-radius: 50%;
+    background: var(--accent-bright);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .4; transform: scale(.8); }
+  }
+
+  .info-block { margin-bottom: 0.8rem; }
+  .warning-list div { margin-bottom: 0.35rem; }
+  .subsection { margin-bottom: 1rem; }
+  .subsection-title {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent-bright);
+    margin-bottom: 0.7rem;
+  }
+
+  hr.sep {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1rem 0;
+  }
+</style>
+</head>
+<body data-palette="matrix">
+<header>
+  <div class="logo">Baryon<span>//</span>Runner</div>
+  <div class="badge">.bala → run / export</div>
+  <div class="header-right">
+    <div class="palette-row">
+      <div class="swatch active" data-p="matrix" title="Matrix" onclick="setPalette('matrix')"></div>
+      <div class="swatch" data-p="arctic" title="Arctic" onclick="setPalette('arctic')"></div>
+      <div class="swatch" data-p="amber" title="Amber" onclick="setPalette('amber')"></div>
+      <div class="swatch" data-p="mono" title="Mono" onclick="setPalette('mono')"></div>
+      <div class="swatch" data-p="sakura" title="Sakura" onclick="setPalette('sakura')"></div>
+    </div>
+    <button class="zoom-btn" type="button" onclick="zoom(-1)">A−</button>
+    <button class="zoom-btn" type="button" onclick="zoom(1)">A+</button>
+    <button class="music-btn" id="music-btn" type="button">
+      <div class="mbars" id="mbars"><span></span><span></span><span></span><span></span><span></span></div>
+      <span id="music-label">Music</span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="panel">
+    <div>
+      <div class="section-label">Baryon File</div>
+      <div class="drop-zone" id="bala-zone">
+        <div class="drop-icon">⬡</div>
+        <div class="drop-title">Drop .bala file here</div>
+        <div class="drop-sub">Baryon specification</div>
+        <div class="browse-btn" id="bala-browse-btn">Browse file</div>
+        <input type="file" id="bala-input" accept=".bala,.txt" style="display:none">
+        <div class="file-list" id="bala-list"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Extra Data Files</div>
+      <div class="card">
+        <div class="field">
+          <label>Upload generic input data</label>
+          <input type="file" id="extraDataInput" multiple>
+          <div class="hint">If your .bala uses parameters like matrixName without a [file] section, upload the real files here. They will be copied into workDir before execution.</div>
+        </div>
+        <div class="file-list" id="extraDataList"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Pipeline Info</div>
+      <div class="card">
+        <div class="info-block">
+          <div class="subsection-title">Research</div>
+          <div class="small" id="researchBox">No file loaded.</div>
+        </div>
+        <div class="info-block">
+          <div class="subsection-title">Warnings</div>
+          <div class="warning-list small" id="warningBox">None.</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Actions</div>
+      <div class="card">
+        <div class="row" style="margin-bottom:0.71rem;">
+          <button class="btn" id="runBtn" disabled>
+            <div class="spinner" id="spinner"></div>
+            <span id="runLabel">▶ Run Analysis</span>
+          </button>
+          <button class="btn secondary" id="parseBtn" disabled>Refresh Form</button>
+        </div>
+        <hr class="sep">
+        <div class="field">
+          <label for="targetSelect">Generate frontend</label>
+          <select id="targetSelect">
+            <option value="nextflow">Nextflow</option>
+            <option value="streamflow">Streamflow</option>
+            <option value="galaxy">Galaxy</option>
+            <option value="python">Python</option>
+            <option value="bash">Bash</option>
+            <option value="r">R</option>
+          </select>
+        </div>
+        <button class="btn secondary" id="exportBtn" disabled>Generate and Download</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="output-panel">
+    <div class="output-tabs">
+      <div class="tab active" data-tab="form">Inputs & Parameters</div>
+      <div class="tab" data-tab="log">Execution Log</div>
+      <div class="tab" data-tab="jobs">Job History</div>
+    </div>
+
+    <div class="tab-content active" id="tab-form">
+      <div class="card">
+        <div id="dynamicForm" class="small">Load a .bala file to generate the form.</div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-log">
+      <div id="current-job-banner" style="display:none" class="current-job-banner">
+        <span>Job <b id="banner-job-id"></b> — <span id="banner-status"></span></span>
+        <div class="pulse" id="banner-pulse"></div>
+      </div>
+      <div class="terminal" id="logBox"><span class="term-prompt">baryon $</span> Ready. Upload a .bala file and run.</div>
+      <div id="resultArea" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="tab-content" id="tab-jobs">
+      <div id="jobsBox"></div>
+      <div class="empty-state" id="jobs-empty">
+        <div class="big">◻</div>
+        No jobs yet. Run something and they appear here.
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let fontSize = 14;
+let balaFile = null;
+let schema = null;
+let currentJob = null;
+let pollTimer = null;
+const jobs = {};
+let extraDataFiles = [];
+let audioCtx = null;
+let musicPlaying = false;
+let schedTmr = null;
+let seqIdx = 0;
+let nextNoteTime = 0;
+let vuRaf = null;
+
+const balaInput = document.getElementById('bala-input');
+const balaList = document.getElementById('bala-list');
+const runBtn = document.getElementById('runBtn');
+const parseBtn = document.getElementById('parseBtn');
+const exportBtn = document.getElementById('exportBtn');
+const logBox = document.getElementById('logBox');
+const resultArea = document.getElementById('resultArea');
+const researchBox = document.getElementById('researchBox');
+const warningBox = document.getElementById('warningBox');
+const dynamicForm = document.getElementById('dynamicForm');
+const extraDataInput = document.getElementById('extraDataInput');
+const extraDataList = document.getElementById('extraDataList');
+
+function setPalette(p) {
+  document.body.setAttribute('data-palette', p);
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.p === p));
+}
+
+function zoom(delta) {
+  fontSize = Math.min(22, Math.max(10, fontSize + delta));
+  document.documentElement.style.fontSize = fontSize + 'px';
+}
+
+function setupZone(zoneId, browseId, inputId, onFiles) {
+  const zone = document.getElementById(zoneId);
+  const browse = document.getElementById(browseId);
+  const input = document.getElementById(inputId);
+
+  browse.addEventListener('click', (e) => {
+    e.stopPropagation();
+    input.click();
+  });
+
+  zone.addEventListener('click', (e) => {
+    if (e.target === browse) return;
+    input.click();
+  });
+
+  input.addEventListener('change', () => {
+    const files = Array.from(input.files || []);
+    if (files.length) onFiles(files);
+    input.value = '';
+  });
+
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length) onFiles([files[0]]);
+  });
+}
+
+
+extraDataInput.addEventListener('change', () => {
+  const files = Array.from(extraDataInput.files || []);
+  if (!files.length) return;
+  extraDataFiles.push(...files);
+  renderExtraDataFiles();
+  maybeAutofillFromExtraData();
+  extraDataInput.value = '';
+});
+
+function renderExtraDataFiles() {
+  extraDataList.innerHTML = '';
+  extraDataFiles.forEach((file, idx) => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.innerHTML = `<span>${escapeHtml(file.name)}</span><span class="remove">×</span>`;
+    item.querySelector('.remove').addEventListener('click', () => {
+      extraDataFiles.splice(idx, 1);
+      renderExtraDataFiles();
+    });
+    extraDataList.appendChild(item);
+  });
+}
+
+function maybeAutofillFromExtraData() {
+  if (!extraDataFiles.length) return;
+  const first = extraDataFiles[0].name;
+  const dot = first.lastIndexOf('.');
+  const stem = dot > 0 ? first.slice(0, dot) : first;
+  const ext = dot > 0 ? first.slice(dot + 1) : '';
+  const matrixField = document.querySelector('[data-kind="param"][data-name="matrixName"]');
+  const formatField = document.querySelector('[data-kind="param"][data-name="format"]');
+  if (matrixField && !matrixField.value) matrixField.value = stem;
+  if (formatField && !formatField.value && ext) formatField.value = ext;
+}
+
+setupZone('bala-zone', 'bala-browse-btn', 'bala-input', async (files) => {
+  balaFile = files[0] || null;
+  renderBalaFile();
+  updateButtons();
+  if (balaFile) await parseBala();
+});
+
+function renderBalaFile() {
+  balaList.innerHTML = '';
+  const zone = document.getElementById('bala-zone');
+  if (!balaFile) {
+    zone.classList.remove('has-file');
+    return;
+  }
+  zone.classList.add('has-file');
+  const item = document.createElement('div');
+  item.className = 'file-item';
+  item.innerHTML = `<span>${escapeHtml(balaFile.name)}</span><span class="remove">×</span>`;
+  item.querySelector('.remove').addEventListener('click', (e) => {
+    e.stopPropagation();
+    balaFile = null;
+    schema = null;
+    renderBalaFile();
+    updateButtons();
+    researchBox.textContent = 'No file loaded.';
+    warningBox.textContent = 'None.';
+    dynamicForm.innerHTML = '<div class="small">Load a .bala file to generate the form.</div>';
+  });
+  balaList.appendChild(item);
+}
+
+function updateButtons() {
+  const enabled = !!balaFile;
+  runBtn.disabled = !enabled;
+  parseBtn.disabled = !enabled;
+  exportBtn.disabled = !enabled;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.toggle('active', content.id === `tab-${name}`));
+  if (name === 'jobs') renderJobs();
+}
+
+document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+
+parseBtn.addEventListener('click', parseBala);
+runBtn.addEventListener('click', runBala);
+exportBtn.addEventListener('click', exportFrontend);
+
+async function parseBala() {
+  if (!balaFile) return;
+  const fd = new FormData();
+  fd.append('bala', balaFile);
+  try {
+    const res = await fetch('/parse-bala', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Parse failed');
+    schema = data.schema;
+    renderSchema();
+    switchTab('form');
+    appendLog(`<span class="term-prompt">baryon $</span> Parsed ${escapeHtml(balaFile.name)}\n`);
+  } catch (e) {
+    appendLog(`<span class="term-err">${escapeHtml(e.message)}</span>\n`);
+  }
+}
+
+function renderSchema() {
+  const research = schema?.research?.description || 'No research description.';
+  researchBox.textContent = research;
+
+  const warnings = schema?.warnings || [];
+  warningBox.innerHTML = warnings.length ? warnings.map(w => `<div>• ${escapeHtml(w)}</div>`).join('') : 'None.';
+
+  const ordered = (schema?.run?.ordered_names || []).slice();
+  const filesMap = new Map((schema.files || []).map(x => [x.name, x]));
+  const paramsMap = new Map((schema.parameters || []).map(x => [x.name, x]));
+
+  let html = '';
+
+  if ((schema.files || []).length) {
+    html += '<div class="subsection"><div class="subsection-title">Files</div>';
+    for (const name of [...ordered, ...filesMap.keys()]) {
+      if (!filesMap.has(name)) continue;
+      const f = filesMap.get(name);
+      filesMap.delete(name);
+      html += `
+        <div class="field">
+          <label>${escapeHtml(f.name)} ${f.flag === 'r' ? '(read only)' : '(copied)'}</label>
+          <input type="file" data-kind="file" data-name="${escapeHtml(f.name)}">
+          <div class="hint">${escapeHtml(f.description || '')}</div>
+        </div>`;
+    }
+    html += '</div>';
+  }
+
+  if ((schema.directories || []).length) {
+    html += '<div class="subsection"><div class="subsection-title">Directories</div>';
+    for (const d of (schema.directories || [])) {
+      const val = d.name.toLowerCase() === 'outdir' ? 'results' : d.name;
+      html += `
+        <div class="field">
+          <label>${escapeHtml(d.name)}</label>
+          <input type="text" data-kind="dir" data-name="${escapeHtml(d.name)}" value="${escapeHtml(val)}">
+          <div class="hint">${escapeHtml(d.description || 'Runner-managed directory')}</div>
+        </div>`;
+    }
+    html += '</div>';
+  }
+
+  if ((schema.parameters || []).length) {
+    html += '<div class="subsection"><div class="subsection-title">Parameters</div>';
+    for (const name of [...ordered, ...paramsMap.keys()]) {
+      if (!paramsMap.has(name)) continue;
+      const p = paramsMap.get(name);
+      paramsMap.delete(name);
+      if ((p.values || []).length) {
+        html += `<div class="field"><label>${escapeHtml(p.name)}</label><select data-kind="param" data-name="${escapeHtml(p.name)}">`;
+        for (const v of p.values) {
+          const selected = (p.default || '') === v ? 'selected' : '';
+          html += `<option value="${escapeHtml(v)}" ${selected}>${escapeHtml(v)}</option>`;
+        }
+        html += `</select><div class="hint">${escapeHtml(p.description || '')}</div></div>`;
+      } else {
+        html += `
+          <div class="field">
+            <label>${escapeHtml(p.name)}</label>
+            <input type="text" data-kind="param" data-name="${escapeHtml(p.name)}" value="${escapeHtml(p.default || '')}">
+            <div class="hint">${escapeHtml(p.description || '')}</div>
+          </div>`;
+      }
+    }
+    html += '</div>';
+  }
+
+  dynamicForm.innerHTML = html || '<div class="small">No inputs found in this .bala.</div>';
+  maybeAutofillFromExtraData();
+}
+
+async function runBala() {
+  if (!balaFile || !schema) return;
+  setRunning(true);
+  switchTab('log');
+  sfxStart();
+
+  const values = {};
+  const namedFiles = {};
+  const fd = new FormData();
+  fd.append('bala', balaFile);
+
+  document.querySelectorAll('[data-kind="file"]').forEach(el => {
+    if (el.files && el.files[0]) {
+      fd.append('data', el.files[0]);
+      namedFiles[el.dataset.name] = el.files[0].name;
+    }
+  });
+
+  extraDataFiles.forEach(file => fd.append('data', file));
+
+  document.querySelectorAll('[data-kind="dir"]').forEach(el => { values[el.dataset.name] = el.value.trim(); });
+  document.querySelectorAll('[data-kind="param"]').forEach(el => { values[el.dataset.name] = el.value; });
+
+  fd.append('values_json', JSON.stringify(values));
+  fd.append('named_files_json', JSON.stringify(namedFiles));
+
+  try {
+    const res = await fetch('/run-bala', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Run failed');
+
+    currentJob = data.job_id;
+    resultArea.innerHTML = '';
+    document.getElementById('current-job-banner').style.display = 'flex';
+    document.getElementById('banner-job-id').textContent = currentJob;
+    document.getElementById('banner-status').textContent = 'running...';
+    document.getElementById('banner-pulse').style.display = 'block';
+    setTerminal(`<span class="term-prompt">baryon $</span> Job <b>${escapeHtml(currentJob)}</b> submitted\n`);
+    appendLog(`<span class="term-prompt">baryon $</span> Workflow: ${escapeHtml(balaFile.name)}\n`);
+    pollTimer = setInterval(() => pollStatus(currentJob), 2000);
+  } catch (e) {
+    appendLog(`<span class="term-err">${escapeHtml(e.message)}</span>\n`);
+    setRunning(false);
+  }
+}
+
+async function pollStatus(jobId) {
+  try {
+    const res = await fetch(`/status/${jobId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    jobs[jobId] = data;
+    renderJobs();
+
+    if (data.status === 'running') {
+      document.getElementById('banner-status').textContent = 'running...';
+      return;
+    }
+
+    clearInterval(pollTimer);
+    pollTimer = null;
+    setRunning(false);
+    document.getElementById('banner-pulse').style.display = 'none';
+    document.getElementById('banner-status').textContent = data.status === 'done' ? 'completed' : 'error';
+
+    setTerminal(data.log ? escapePreserveHtml(data.log) : escapeHtml(data.status));
+
+    if (data.status === 'done' && data.has_results) {
+      sfxDone();
+      appendLog(`\n<span class="term-ok">Done. Results ready.</span>\n`);
+      resultArea.innerHTML = `<a class="dl-btn" href="/download/${jobId}">↓ Download results</a>`;
+    } else {
+      sfxError();
+      resultArea.innerHTML = `<span class="term-err">Execution failed.</span>`;
+    }
+  } catch (_) {}
+}
+
+async function exportFrontend() {
+  if (!balaFile) return;
+  const fd = new FormData();
+  fd.append('bala', balaFile);
+  fd.append('target', document.getElementById('targetSelect').value);
+  try {
+    const res = await fetch('/generate-frontend', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Export failed');
+    appendLog(`<span class="term-prompt">baryon $</span> ${escapeHtml(data.message || '')}\n`);
+  } catch (e) {
+    appendLog(`<span class="term-err">${escapeHtml(e.message)}</span>\n`);
+  }
+}
+
+function renderJobs() {
+  const box = document.getElementById('jobsBox');
+  const empty = document.getElementById('jobs-empty');
+  const ids = Object.keys(jobs).reverse();
+  if (!ids.length) {
+    box.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  box.innerHTML = ids.map(id => {
+    const j = jobs[id];
+    return `
+      <div class="job-card">
+        <div class="job-info">
+          <div class="job-id">#${escapeHtml(id)}</div>
+          <div class="job-file">${escapeHtml(j.workflow || '')}</div>
+        </div>
+        <span class="status-pill status-${escapeHtml(j.status)}">${escapeHtml(j.status)}</span>
+        <a class="dl-btn" href="/download/${escapeHtml(id)}" ${j.has_results ? '' : 'disabled'}>↓ Download</a>
+      </div>`;
+  }).join('');
+}
+
+function setRunning(v) {
+  document.getElementById('spinner').style.display = v ? 'block' : 'none';
+  document.getElementById('runLabel').textContent = v ? 'Running...' : '▶ Run Analysis';
+  runBtn.disabled = v || !balaFile;
+  parseBtn.disabled = v || !balaFile;
+  exportBtn.disabled = v || !balaFile;
+}
+
+function setTerminal(html) {
+  logBox.innerHTML = html;
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function appendLog(html) {
+  logBox.innerHTML += html;
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapePreserveHtml(str) {
+  return escapeHtml(String(str || '')).replace(/\n/g, '<br>');
+}
+
+function ensureAudioContext() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function sfxStart() {
+  ensureAudioContext();
+  if (!audioCtx) return;
+  [440, 660].forEach((freq, i) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'square';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0, audioCtx.currentTime + i * 0.12);
+    g.gain.linearRampToValueAtTime(0.07, audioCtx.currentTime + i * 0.12 + 0.01);
+    g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + i * 0.12 + 0.1);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(audioCtx.currentTime + i * 0.12);
+    o.stop(audioCtx.currentTime + i * 0.12 + 0.12);
+  });
+}
+
+function sfxDone() {
+  ensureAudioContext();
+  if (!audioCtx) return;
+  [523, 659, 784, 1047].forEach((freq, i) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const t = audioCtx.currentTime + i * 0.1;
+    o.type = 'triangle';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.09, t + 0.02);
+    g.gain.linearRampToValueAtTime(0, t + 0.22);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.25);
+  });
+}
+
+function sfxError() {
+  ensureAudioContext();
+  if (!audioCtx) return;
+  [380, 280].forEach((freq, i) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.18);
+    o.frequency.linearRampToValueAtTime(freq * 0.75, audioCtx.currentTime + i * 0.18 + 0.2);
+    g.gain.setValueAtTime(0.07, audioCtx.currentTime + i * 0.18);
+    g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + i * 0.18 + 0.22);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(audioCtx.currentTime + i * 0.18);
+    o.stop(audioCtx.currentTime + i * 0.18 + 0.25);
+  });
+}
+
+const BPM = 160;
+const S = 60 / BPM / 4;
+const _ = 0;
+const A2=110, B2=123, C2=65, D2=73.4, E2=82.4, F2=87.3, G2=98;
+const A3=220, C3=130.8, D3=146.8, E3=164.8, F3=174.6, G3=196;
+const A4=440, B4=493.9, C4=261.6, D4=293.7, E4=329.6, F4=349.2, G4=392, Ab4=415.3;
+const A5=880, B5=987.8, C5=523.3, D5=587.3, E5=659.3, F5=698.5, G5=784;
+const lead = [E5,_,E5,_,D5,_,C5,_,A4,_,C5,D5,E5,_,_,_,E5,G5,A5,_,G5,E5,D5,_,C5,_,D5,_,E5,D5,C5,_,D5,_,D5,_,C5,_,A4,_,G4,A4,C5,_,D5,_,E5,_,A5,_,G5,E5,D5,_,C5,_,A4,C5,E5,_,E5,D5,C5,_];
+const bass = [A2,_,A2,_,A2,_,E2,E2,F2,_,F2,_,E2,_,E2,_,A2,_,A2,_,A2,_,E2,E2,D2,_,D2,_,E2,_,E2,_,F2,_,F2,_,F2,_,E2,E2,E2,_,E2,_,A2,_,A2,_,A2,_,A2,A2,G2,_,G2,_,F2,_,F2,_,E2,_,A2,_];
+const arp = [A4,C5,E5,A4,C5,E5,A4,C5,A4,C5,E5,A4,E5,C5,A4,_,A4,C5,E5,A4,E5,G5,B5,E5,A4,C5,E5,A4,E5,C5,A4,_,F4,Ab4,C5,F4,Ab4,C5,F4,Ab4,E4,G4,B4,E4,G4,B4,E4,G4,D4,F4,A4,D4,F4,A4,D4,F4,E4,G4,B4,E4,A4,E4,A3,_];
+const TLEN = lead.length;
+const kicks = new Set([0,6,8,14,16,22,24,30,32,38,40,46,48,54,56,62]);
+const snares = new Set([4,12,20,28,36,44,52,60]);
+
+function mOsc(freq, type, gain, t, dur, detune) {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if (detune) o.detune.setValueAtTime(detune, t);
+  g.gain.setValueAtTime(0.001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+
+function mKick(t) {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+  g.gain.setValueAtTime(0.8, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.2);
+}
+
+function mSnare(t) {
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.5);
+  const s = audioCtx.createBufferSource();
+  const f = audioCtx.createBiquadFilter();
+  const g = audioCtx.createGain();
+  f.type = 'bandpass'; f.frequency.value = 2000; f.Q.value = 0.7;
+  g.gain.setValueAtTime(0.35, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  s.buffer = buf; s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(t);
+}
+
+function mHat(t, open) {
+  const dur = open ? 0.12 : 0.04;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const s = audioCtx.createBufferSource();
+  const f = audioCtx.createBiquadFilter();
+  const g = audioCtx.createGain();
+  f.type = 'highpass'; f.frequency.value = 8000;
+  g.gain.setValueAtTime(open ? 0.15 : 0.09, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.buffer = buf; s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(t);
+}
+
+function scheduleMusic() {
+  if (!musicPlaying) return;
+  while (nextNoteTime < audioCtx.currentTime + 0.25) {
+    const i = seqIdx % TLEN;
+    const t = nextNoteTime;
+    if (lead[i]) { mOsc(lead[i], 'square', 0.07, t, S * 0.8, 8); mOsc(lead[i] * 2, 'square', 0.015, t, S * 0.5, -8); }
+    if (bass[i]) mOsc(bass[i], 'sawtooth', 0.11, t, S * 1.6);
+    if (arp[i]) mOsc(arp[i], 'square', 0.03, t, S * 0.4);
+    if (kicks.has(i)) mKick(t);
+    if (snares.has(i)) mSnare(t);
+    if (i % 2 === 0) mHat(t, i % 16 === 4 || i % 16 === 12);
+    nextNoteTime += S;
+    seqIdx++;
+  }
+  schedTmr = setTimeout(scheduleMusic, 50);
+}
+
+function animVU() {
+  if (!musicPlaying) return;
+  document.getElementById('mbars').querySelectorAll('span').forEach((b, i) => {
+    const h = 3 + Math.abs(Math.sin(Date.now() / (55 + i * 28) + i * 0.9)) * 9;
+    b.style.height = Math.round(h) + 'px';
+  });
+  vuRaf = requestAnimationFrame(animVU);
+}
+
+function toggleMusic() {
+  ensureAudioContext();
+  if (!musicPlaying) {
+    musicPlaying = true;
+    seqIdx = 0;
+    nextNoteTime = audioCtx.currentTime + 0.05;
+    scheduleMusic();
+    animVU();
+    document.getElementById('music-btn').classList.add('playing');
+    document.getElementById('music-label').textContent = 'Stop';
+  } else {
+    musicPlaying = false;
+    clearTimeout(schedTmr);
+    cancelAnimationFrame(vuRaf);
+    document.getElementById('music-btn').classList.remove('playing');
+    document.getElementById('music-label').textContent = 'Music';
+    document.getElementById('mbars').querySelectorAll('span').forEach((b, i) => {
+      const def = [4, 10, 7, 12, 5];
+      b.style.height = def[i] + 'px';
+    });
+  }
+}
+
+document.getElementById('music-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleMusic();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+services:
+  baryonrunner:
+    build: .
+    image: baryonrunner
