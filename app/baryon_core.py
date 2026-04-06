@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import re
 import shlex
@@ -30,6 +31,24 @@ def _norm_section(name: str) -> str:
     return aliases.get(n, n)
 
 
+def _parse_values_field(raw: str) -> list[str]:
+    raw = (raw or "").strip()
+    if not raw:
+        return []
+
+    parsed = next(csv.reader([raw], skipinitialspace=True))
+    values: list[str] = []
+
+    for v in parsed:
+        vv = v.strip()
+        if vv == "":
+            values.append(",")
+        else:
+            values.append(vv)
+
+    return values
+
+
 def parse_bala_text(text: str) -> dict[str, Any]:
     sections: list[dict[str, Any]] = []
     current: dict[str, Any] | None = None
@@ -38,11 +57,17 @@ def parse_bala_text(text: str) -> dict[str, Any]:
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
+
         m = SECTION_RE.match(line)
         if m:
-            current = {"section_type": _norm_section(m.group(1)), "props": {}, "line_no": line_no}
+            current = {
+                "section_type": _norm_section(m.group(1)),
+                "props": {},
+                "line_no": line_no,
+            }
             sections.append(current)
             continue
+
         kv = KEYVAL_RE.match(line)
         if kv and current is not None:
             key, value = kv.group(1).strip(), kv.group(2).strip()
@@ -53,24 +78,39 @@ def parse_bala_text(text: str) -> dict[str, Any]:
     if run is None:
         raise BaryonError("Missing [run] section")
 
-    files, directories, parameters, warnings = [], [], [], []
+    files: list[dict[str, Any]] = []
+    directories: list[dict[str, Any]] = []
+    parameters: list[dict[str, Any]] = []
+    warnings: list[str] = []
+
     for sec in sections:
         props = sec["props"]
+
         if sec["section_type"] == "file":
             if "name" not in props:
                 warnings.append(f"[file] at line {sec['line_no']} ignored: missing name")
                 continue
-            files.append({"name": props["name"], "flag": props.get("flag", "c") or "c", "description": props.get("description", "")})
+            files.append({
+                "name": props["name"],
+                "flag": props.get("flag", "c") or "c",
+                "description": props.get("description", ""),
+            })
+
         elif sec["section_type"] == "directory":
             if "name" not in props:
                 warnings.append(f"[directory] at line {sec['line_no']} ignored: missing name")
                 continue
-            directories.append({"name": props["name"], "description": props.get("description", "")})
+            directories.append({
+                "name": props["name"],
+                "description": props.get("description", ""),
+            })
+
         elif sec["section_type"] == "parameter":
             if "name" not in props:
                 warnings.append(f"[parameter] at line {sec['line_no']} ignored: missing name")
                 continue
-            values = [v.strip() for v in props.get("values", "").split(",") if v.strip()]
+
+            values = _parse_values_field(props.get("values", ""))
             parameters.append({
                 "name": props["name"],
                 "description": props.get("description", ""),
@@ -111,13 +151,17 @@ def schema_to_jsonable(schema: dict[str, Any]) -> dict[str, Any]:
     return json.loads(json.dumps(schema))
 
 
-def _container_dir(name: str) -> str:
-    return f"/baryon/{name}"
-
-
-def build_execution_plan(schema: dict[str, Any], values: dict[str, str], uploaded_files: dict[str, Path], extra_uploaded_files: list[Path], job_dir: Path) -> dict[str, Any]:
+def build_execution_plan(
+    schema: dict[str, Any],
+    values: dict[str, str],
+    uploaded_files: dict[str, Path],
+    extra_uploaded: list[Path],
+    job_dir: Path,
+) -> dict[str, Any]:
     image = schema["run"].get("image", "")
     script = schema["run"].get("script", "")
+    command = schema["run"].get("command", "docker run --rm")
+
     if not image:
         raise BaryonError("[run] image= is required")
     if not script:
@@ -125,71 +169,109 @@ def build_execution_plan(schema: dict[str, Any], values: dict[str, str], uploade
 
     input_dir = job_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
-    mount_args: list[str] = []
+
     token_values: dict[str, str] = {}
     workdir_name = schema.get("workdir_name")
+    host_dirs: dict[str, Path] = {}
 
     for d in schema["directories"]:
         dir_name = d["name"]
         host_dir = job_dir / dir_name
         host_dir.mkdir(parents=True, exist_ok=True)
-        mount_args.extend(["-v", f"{host_dir}:{_container_dir(dir_name)}"])
-        token_values[dir_name] = _container_dir(dir_name)
+        host_dirs[dir_name] = host_dir
+        token_values[dir_name] = str(host_dir)
 
     if not workdir_name and schema["files"]:
-        workdir_name = "workdir"
+        workdir_name = "workDir"
         host_dir = job_dir / workdir_name
         host_dir.mkdir(parents=True, exist_ok=True)
-        mount_args.extend(["-v", f"{host_dir}:{_container_dir(workdir_name)}"])
-        token_values[workdir_name] = _container_dir(workdir_name)
+        host_dirs[workdir_name] = host_dir
+        token_values[workdir_name] = str(host_dir)
 
-    mount_args.extend(["-v", f"{input_dir}:/baryon/input:ro"])
-
-    # Generic uploaded data files: copy them into workDir when present so the container can see them.
-    generic_uploaded_names: list[str] = []
-    if extra_uploaded_files:
-        target_workdir = job_dir / (workdir_name or "workdir")
-        target_workdir.mkdir(parents=True, exist_ok=True)
-        if workdir_name and workdir_name not in token_values:
-            token_values[workdir_name] = _container_dir(workdir_name)
-        for src_file in extra_uploaded_files:
-            dst = target_workdir / src_file.name
-            if dst.resolve() != src_file.resolve():
-                shutil.copy2(src_file, dst)
-            generic_uploaded_names.append(src_file.name)
+    uploaded_generic: list[str] = []
 
     for f in schema["files"]:
         name = f["name"]
         if name not in uploaded_files:
             raise BaryonError(f"Missing uploaded file for field: {name}")
+
         src = uploaded_files[name]
         input_copy = input_dir / src.name
         shutil.copy2(src, input_copy)
+
         if (f.get("flag") or "c").lower() == "c":
-            target_workdir = job_dir / (workdir_name or "workdir")
-            target_workdir.mkdir(parents=True, exist_ok=True)
+            target_workdir = host_dirs.get(workdir_name or "workDir")
+            if target_workdir is None:
+                raise BaryonError("No writable working directory available for copied files")
             copied = target_workdir / src.name
             shutil.copy2(src, copied)
-            token_values[name] = f"{_container_dir(workdir_name or 'workdir')}/{src.name}"
+            token_values[name] = src.name
         else:
             token_values[name] = f"/baryon/input/{src.name}"
+
+    # Copy generic (extra) uploaded files into the workDir
+    if extra_uploaded:
+        target_workdir = host_dirs.get(workdir_name or "workDir")
+        if target_workdir is not None:
+            for src in extra_uploaded:
+                if src.is_file():
+                    dst = target_workdir / src.name
+                    shutil.copy2(src, dst)
+                    uploaded_generic.append(src.name)
 
     for p in schema["parameters"]:
         name = p["name"]
         val = values.get(name, "") or p.get("default", "")
         if p.get("values") and val and val not in p["values"]:
-            raise BaryonError(f"Invalid value for {name}: {val}. Allowed: {', '.join(p['values'])}")
+            raise BaryonError(
+                f"Invalid value for {name}: {val}. Allowed: {', '.join(p['values'])}"
+            )
         token_values[name] = val
 
-    usage = schema["run"].get("usage", "")
-    if usage:
-        expanded = TOKEN_RE.sub(lambda m: token_values.get(m.group(1), ""), usage)
+    if schema["run"].get("usage", ""):
+        expanded = TOKEN_RE.sub(lambda m: token_values.get(m.group(1), ""), schema["run"]["usage"])
         args = shlex.split(expanded)
     else:
-        args = [token_values[name] for name in schema["run"].get("ordered_names", []) if name in token_values]
+        args = [
+            token_values[name]
+            for name in schema["run"].get("ordered_names", [])
+            if name in token_values
+        ]
 
-    cmd = ["docker", "run", "--rm"] + mount_args + [image] + shlex.split(script) + args
-    return {"cmd": cmd, "token_values": token_values, "job_dir": str(job_dir), "generic_uploaded_names": generic_uploaded_names}
+    # Expand tokens in command= (handles -v <workDir>:/data etc.)
+    cmd_tokens = shlex.split(command)
+
+    final_cmd: list[str] = []
+    skip_next = False
+    for i, tok in enumerate(cmd_tokens):
+        if skip_next:
+            skip_next = False
+            continue
+
+        if tok in {"-v", "--volume"} and i + 1 < len(cmd_tokens):
+            spec = cmd_tokens[i + 1]
+            for key, host_path in token_values.items():
+                spec = spec.replace(f"<{key}>", host_path)
+            final_cmd.extend([tok, spec])
+            skip_next = True
+        else:
+            replaced = tok
+            for key, host_path in token_values.items():
+                replaced = replaced.replace(f"<{key}>", host_path)
+            final_cmd.append(replaced)
+
+    if image not in final_cmd:
+        final_cmd.append(image)
+
+    final_cmd.extend(shlex.split(script))
+    final_cmd.extend(args)
+
+    return {
+        "cmd": final_cmd,
+        "token_values": token_values,
+        "job_dir": str(job_dir),
+        "generic_uploaded_names": uploaded_generic,
+    }
 
 
 def _usage_or_default(schema: dict[str, Any]) -> str:
@@ -204,13 +286,18 @@ def _replace_usage_tokens(text: str, repl: dict[str, str]) -> str:
 def generate_bash_wrapper(schema: dict[str, Any]) -> str:
     names = schema["run"]["ordered_names"]
     params = " ".join(f'"${{{i+1}}}"' for i in range(len(names)))
-    return f"#!/usr/bin/env bash\nset -e\ndocker run --rm {schema['run']['image']} {schema['run']['script']} {params}\n"
+    return (
+        "#!/usr/bin/env bash\n"
+        "set -e\n"
+        f"docker run --rm {schema['run']['image']} {schema['run']['script']} {params}\n"
+    )
 
 
 def generate_python_wrapper(schema: dict[str, Any]) -> str:
     items = schema["files"] + schema["directories"] + schema["parameters"]
     argspec = []
     names = []
+
     for item in items:
         names.append(item["name"])
         default = item.get("default", "")
@@ -218,33 +305,53 @@ def generate_python_wrapper(schema: dict[str, Any]) -> str:
             argspec.append(f"    {item['name']}: str = {default!r},")
         else:
             argspec.append(f"    {item['name']}: str,")
-    cmd_items = ", ".join([repr(x) for x in ["docker", "run", "--rm", schema["run"]["image"], *schema["run"]["script"].split()]] + names)
-    return f"import subprocess\n\n\ndef run_pipeline(\n{chr(10).join(argspec)}\n) -> int:\n    cmd = [{cmd_items}]\n    return subprocess.call(cmd)\n"
+
+    cmd_items = ", ".join(
+        [repr(x) for x in ["docker", "run", "--rm", schema["run"]["image"], *schema["run"]["script"].split()]]
+        + names
+    )
+
+    return (
+        "import subprocess\n\n\n"
+        "def run_pipeline(\n"
+        + "\n".join(argspec)
+        + "\n) -> int:\n"
+        + f"    cmd = [{cmd_items}]\n"
+        + "    return subprocess.call(cmd)\n"
+    )
 
 
 def generate_r_wrapper(schema: dict[str, Any]) -> str:
     arg_names = [x["name"] for x in schema["files"] + schema["directories"] + schema["parameters"]]
     parts = ["'run'", "'--rm'", f"'{schema['run']['image']}'"] + [repr(x) for x in schema["run"]["script"].split()] + arg_names
-    return "run_pipeline <- function(" + ", ".join(arg_names) + ") {\n" + "  system2('docker', args = c(" + ", ".join(parts) + "))\n}\n"
+    return (
+        "run_pipeline <- function(" + ", ".join(arg_names) + ") {\n"
+        + "  system2('docker', args = c(" + ", ".join(parts) + "))\n"
+        + "}\n"
+    )
 
 
 def generate_nextflow(schema: dict[str, Any]) -> tuple[str, str]:
     files = schema["files"]
     params_lines = [f"params.{f['name']} = '{f['name']}'" for f in files]
+
     for p in schema["parameters"]:
         default = p.get("default") or (p.get("values") or [""])[0]
         params_lines.append(f"params.{p['name']} = '{default}'")
 
     input_block = "\n    ".join([f"path {f['name']}" for f in files]) or "val dummy"
     cp_lines = [f"cp ${{{f['name']}}} /data/{f['name']} 2>/dev/null || true" for f in files]
+
     repl = {f["name"]: f"/data/{f['name']}" for f in files}
     repl.update({d["name"]: f"/data/{d['name']}" for d in schema["directories"]})
     for p in schema["parameters"]:
         repl[p["name"]] = f"${{params.{p['name']}}}"
+
     args = _replace_usage_tokens(_usage_or_default(schema), repl)
     workflow_setup = "; ".join([f"{f['name']}_ch = Channel.fromPath(params.{f['name']})" for f in files]) or "dummy_ch = Channel.value(1)"
     workflow_call = ", ".join([f"{f['name']}_ch" for f in files]) or "dummy_ch"
     cp_block = "\n    ".join(cp_lines)
+
     script = (
         "#!/usr/bin/env nextflow\n"
         "nextflow.enable.dsl=2\n\n"
@@ -269,7 +376,14 @@ def generate_nextflow(schema: dict[str, Any]) -> tuple[str, str]:
         f"    baryonProcess({workflow_call})\n"
         "}\n"
     )
-    config = "docker {\n    enabled    = true\n    runOptions = '--platform linux/amd64'\n}\n"
+
+    config = (
+        "docker {\n"
+        "    enabled    = true\n"
+        "    runOptions = '--platform linux/amd64'\n"
+        "}\n"
+    )
+
     return script, config
 
 
@@ -296,27 +410,46 @@ def generate_streamflow_yaml(schema: dict[str, Any]) -> str:
 
 def generate_galaxy_xml(schema: dict[str, Any]) -> str:
     input_params = []
+
     for f in schema["files"]:
-        input_params.append(f'        <param name="{f["name"]}" type="data" label="{f["name"]}" help="{f.get("description", "")}" />')
+        input_params.append(
+            f'        <param name="{f["name"]}" type="data" label="{f["name"]}" help="{f.get("description", "")}" />'
+        )
+
     for p in schema["parameters"]:
         if p.get("values"):
             opts = "\n".join([f'            <option value="{v}">{v}</option>' for v in p["values"]])
-            input_params.append(f'        <param name="{p["name"]}" type="select" label="{p["name"]}" help="{p.get("description", "")}">\n{opts}\n        </param>')
+            input_params.append(
+                f'        <param name="{p["name"]}" type="select" label="{p["name"]}" help="{p.get("description", "")}">\n'
+                f"{opts}\n"
+                f"        </param>"
+            )
         else:
-            input_params.append(f'        <param name="{p["name"]}" type="text" value="{p.get("default", "")}" label="{p["name"]}" help="{p.get("description", "")}" />')
+            input_params.append(
+                f'        <param name="{p["name"]}" type="text" value="{p.get("default", "")}" label="{p["name"]}" help="{p.get("description", "")}" />'
+            )
+
     repl = {f["name"]: f"${f['name']}" for f in schema["files"]}
     repl.update({p["name"]: f"${p['name']}" for p in schema["parameters"]})
     repl.update({d["name"]: f"/data/{d['name']}" for d in schema["directories"]})
     args = _replace_usage_tokens(_usage_or_default(schema), repl)
+
     return (
         f'<tool id="baryon_tool" name="baryon_tool">\n'
-        f'    <description>Generated from Baryon</description>\n'
-        f'    <requirements>\n        <container type="docker">{schema["run"]["image"]}</container>\n    </requirements>\n'
-        f'    <command><![CDATA[\n        {schema["run"]["script"]} {args}\n    ]]></command>\n'
-        f'    <inputs>\n' + "\n".join(input_params) + '\n    </inputs>\n'
-        f'    <outputs>\n        <data name="results" format="data" label="Generated results" />\n    </outputs>\n'
-        f'    <help>Generated from .bala</help>\n'
-        f'</tool>\n'
+        f"    <description>Generated from Baryon</description>\n"
+        f"    <requirements>\n"
+        f'        <container type="docker">{schema["run"]["image"]}</container>\n'
+        f"    </requirements>\n"
+        f"    <command><![CDATA[\n"
+        f"        {schema['run']['script']} {args}\n"
+        f"    ]]></command>\n"
+        f"    <inputs>\n"
+        + "\n".join(input_params)
+        + "\n"
+        + "    </inputs>\n"
+        + '    <outputs>\n        <data name="results" format="data" label="Generated results" />\n    </outputs>\n'
+        + "    <help>Generated from .bala</help>\n"
+        + "</tool>\n"
     )
 
 
@@ -364,4 +497,5 @@ def generate_frontend_bundle(schema: dict[str, Any], target: str, out_dir: Path)
         encoding="utf-8",
     )
     created.append(readme)
+
     return created

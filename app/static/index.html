@@ -636,7 +636,7 @@
         <div class="field">
           <label>Upload generic input data</label>
           <input type="file" id="extraDataInput" multiple>
-          <div class="hint">If your .bala uses parameters like matrixName without a [file] section, upload the real files here. They will be copied into workDir before execution.</div>
+          <div class="hint">If your .bala uses parameters like matrixName without a [file] section, upload the real files here. They will be copied into the writable shared directory before execution.</div>
         </div>
         <div class="file-list" id="extraDataList"></div>
       </div>
@@ -678,7 +678,7 @@
             <option value="r">R</option>
           </select>
         </div>
-        <button class="btn secondary" id="exportBtn" disabled>Generate and Download</button>
+        <button class="btn secondary" id="exportBtn" disabled>Generate Frontend (mock)</button>
       </div>
     </div>
   </div>
@@ -1052,6 +1052,7 @@ async function exportFrontend() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Export failed');
     appendLog(`<span class="term-prompt">baryon $</span> ${escapeHtml(data.message || '')}\n`);
+    switchTab('log');
   } catch (e) {
     appendLog(`<span class="term-err">${escapeHtml(e.message)}</span>\n`);
   }

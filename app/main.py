@@ -98,7 +98,7 @@ async def generate_frontend(
     schema = parse_bala_text(text)
     ordered = schema.get("run", {}).get("ordered_names", [])
     msg = (
-        f"GENERO front end per {target}\n"
+        f"GENERO front end per {target} (placeholder)\n"
         f"image={schema.get('run', {}).get('image', '')}\n"
         f"script={schema.get('run', {}).get('script', '')}\n"
         f"usage={schema.get('run', {}).get('usage', '')}\n"

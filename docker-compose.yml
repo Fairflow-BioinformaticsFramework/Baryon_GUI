@@ -1,4 +1,3 @@
 services:
   baryonrunner:
-    build: .
-    image: baryonrunner
+    image: ghcr.io/fairflow-bioinformaticsframework/baryon_gui:latest

@@ -1,0 +1,43 @@
+[research]
+description=descrizione di cosa fa il lo script sul docker interessato e varie informazioni utili
+#
+[run]
+command=docker run --rm -v <workDir>:/data -v <outDir>:/Out
+script= Rscript /bin/top.R
+image= repbioinfo/topxv2:1
+usage= <matrixName> <format> <separator> <logged> <threshold> <type>
+#
+[directory]
+name=workDir
+description=percorso cartella di lavoro
+#
+[directory]
+name=outDir
+description=percorso cartella di output
+#
+[parameter]
+name=matrixName
+description=name del file di input senza estensione
+#
+[parameter]
+name=format
+description=formato del file matrixName
+#
+[parameter]
+name=threshold
+description=Soglia per selezionare i geni top
+#
+[parameter]
+name=separator
+values=tab,",", semicolon
+description=Separatore del file
+#
+[parameter]
+name=logged
+values=TRUE, FALSE
+description=se i dati sono gia in scala logaritmica
+#
+[parameter]
+name=type
+values=expression, variance
+description=tipo di analisi

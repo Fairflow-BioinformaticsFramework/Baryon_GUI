@@ -3,7 +3,7 @@ set -e
 
 echo ""
 echo " ===================================="
-echo "  BaryonRunner - Dev Build"
+echo "  BaryonRunner"
 echo " ===================================="
 echo ""
 
@@ -12,8 +12,8 @@ if ! docker info >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "[1/2] Building image locally..."
-docker compose -f docker-compose.dev.yml build
+echo "[1/2] Pulling latest image..."
+docker pull ghcr.io/fairflow-bioinformaticsframework/baryon_gui:latest
 
 echo ""
 echo "[2/2] Starting BaryonRunner..."
@@ -22,4 +22,4 @@ echo "  GUI  >  http://localhost:8082"
 echo ""
 
 docker rm -f baryonrunner >/dev/null 2>&1 || true
-docker run --rm --name baryonrunner --privileged --cgroupns=host -p 8082:8082 baryonrunner
+docker run --rm --name baryonrunner --privileged --cgroupns=host -p 8082:8082 ghcr.io/fairflow-bioinformaticsframework/baryon_gui:latest
